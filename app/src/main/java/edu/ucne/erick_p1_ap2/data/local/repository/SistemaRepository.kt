@@ -8,19 +8,13 @@ import javax.inject.Inject
 class SistemaRepository @Inject constructor(
     private val sistemaDao: SistemaDao
 ) {
-    suspend fun save(sistema: SistemaEntity) {
-        sistemaDao.save(sistema)
-    }
+    suspend fun save(sistema: SistemaEntity) = sistemaDao.save(sistema)
 
-    suspend fun find(id: Int): SistemaEntity? {
-        return sistemaDao.find(id)
-    }
+    suspend fun update(sistema: SistemaEntity) = sistemaDao.update(sistema)
 
-    suspend fun delete(sistema: SistemaEntity) {
-        sistemaDao.delete(sistema)
-    }
+    suspend fun delete(sistema: SistemaEntity) = sistemaDao.delete(sistema)
 
-    fun getAll(): Flow<List<SistemaEntity>> {
-        return sistemaDao.getAll()
-    }
+    suspend fun get(id: Int): SistemaEntity? = sistemaDao.get(id)
+
+    fun getAll(): Flow<List<SistemaEntity>> = sistemaDao.getAll()
 }

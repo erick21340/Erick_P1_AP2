@@ -14,83 +14,103 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SistemaViewModel @Inject constructor(
-    private val sistemaRepository: SistemaRepository
-) : ViewModel() {
+    private val SistemaRepository:SistemaRepository
 
+) : ViewModel() {
     private val _uiState = MutableStateFlow(UiState())
-    val uiState get() = _uiState.asStateFlow()
+    val uiState = _uiState.asStateFlow()
 
     init {
-        getSistemas()
+        getsistema()
+
     }
 
-    fun savesistema() {
+    fun validarCampos(): Boolean {
+        return !_uiState.value.nombre.isNullOrBlank() &&
+                _uiState.value.precio > 0.0
+    }
+
+    fun save() {
         viewModelScope.launch {
-            if (_uiState.value.nombre.isBlank()) {
+            if (!validarCampos()) {
                 _uiState.update {
-                    it.copy(errorMessage = "El nombre es obligatorio.", successMessage = null)
+                    it.copy(
+                        error = "Por favor, completa todos los campos correctamente.",
+                        guardado = false
+                    )
                 }
                 return@launch
             }
 
             try {
-                sistemaRepository.save(_uiState.value.toEntity())
-                _uiState.update {
-                    it.copy(successMessage = "Sistema guardado correctamente.", errorMessage = null)
-                }
-                nuevoSistema()
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(errorMessage = "Error al guardar el sistema: ${e.message}", successMessage = null)
-                }
-            }
-        }
-    }
+                val sistema = _uiState.value.toEntity()
+                SistemaRepository.save(sistema)
 
-    fun nuevoSistema() {
-        _uiState.update {
-            it.copy(
-                sistemaId = null,
-                nombre = "",
-                errorMessage = null,
-                successMessage = null
-            )
-        }
-    }
-
-    fun selectSistema(sistemaId: Int) {
-        viewModelScope.launch {
-            if (sistemaId > 0) {
-                val sistema = sistemaRepository.find(sistemaId)
                 _uiState.update {
                     it.copy(
-                        sistemaId = sistema?.sistemaid,
-                        nombre = sistema?.nombre ?: ""
+                        error = null,
+                        guardado = true
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        error = "Ocurrió un error al guardar. Inténtalo nuevamente.",
+                        guardado = false
                     )
                 }
             }
         }
     }
 
-    fun deleteSistema() {
+    fun update() {
         viewModelScope.launch {
-            try {
-                sistemaRepository.delete(_uiState.value.toEntity())
+            if (!validarCampos() || _uiState.value.sistemaId == null) {
                 _uiState.update {
-                    it.copy(successMessage = "Sistema eliminado correctamente.", errorMessage = null)
+                    it.copy(
+                        error = "Por favor, completa todos los campos correctamente.",
+                        guardado = false
+                    )
                 }
-                nuevoSistema()
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(errorMessage = "Error al eliminar el sistema: ${e.message}", successMessage = null)
+                return@launch
+            }
+
+            val sistemas = _uiState.value.toEntity()
+            SistemaRepository.update(sistemas)
+            _uiState.update { it.copy(error = null, guardado = true) }
+        }
+    }
+
+    fun delete() {
+        viewModelScope.launch {
+            if (_uiState.value.sistemaId != null) {
+                SistemaRepository.delete(_uiState.value.toEntity())
+                _uiState.update { it.copy(sistemaId = null) }
+            }
+        }
+    }
+
+    fun get(sistemaId: Int) {
+        viewModelScope.launch {
+
+            println("Sistema recibido: $sistemaId")
+            if (sistemaId > 0) {
+                val sistema = SistemaRepository.get(sistemaId)
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        sistemaId = sistema?.sistemaId,
+                        nombre = sistema?.nombre ?: "",
+                        precio = sistema?.precio ?: 0.0,
+                        error = null
+                    )
                 }
             }
         }
     }
 
-    fun getSistemas() {
+    private fun getsistema() {
         viewModelScope.launch {
-            sistemaRepository.getAll().collect { sistemas ->
+            SistemaRepository.getAll().collect { sistemas ->
                 _uiState.update {
                     it.copy(sistemas = sistemas)
                 }
@@ -100,26 +120,30 @@ class SistemaViewModel @Inject constructor(
 
     fun onNombreChange(nombre: String) {
         _uiState.update {
-            it.copy(nombre = nombre)
+            it.copy( nombre= nombre)
         }
     }
 
-    fun clearMessages() {
+    fun onPrecioChange(precio: Double) {
         _uiState.update {
-            it.copy(errorMessage = null, successMessage = null)
+            it.copy(precio = precio)
         }
     }
-
-    data class UiState(
-        val sistemaId: Int? = null,
-        val nombre: String = "",
-        val errorMessage: String? = null,
-        val successMessage: String? = null,
-        val sistemas: List<SistemaEntity> = emptyList()
-    )
-
-    fun UiState.toEntity() = SistemaEntity(
-        sistemaid = sistemaId,
-        nombre = nombre
-    )
 }
+
+
+
+data class UiState(
+    val sistemaId: Int? = null,
+    val nombre: String = "",
+    val precio: Double = 0.0,
+    val error: String? = null,
+    var guardado: Boolean? = false,
+    val sistemas: List<SistemaEntity> = emptyList()
+)
+
+fun UiState.toEntity() = SistemaEntity(
+    sistemaId = sistemaId,
+    nombre = nombre,
+    precio = precio
+)
